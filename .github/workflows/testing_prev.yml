@@ -1,25 +1,112 @@
 name: Testing previous PyTorch
-
-on:  # yamllint disable-line rule:truthy
+on:
   push:
     branches:
-      - master
-  pull_request:
+      - main
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}-${{ startsWith(github.ref, 'refs/pull/') || github.run_number }}  # yamllint disable-line
-  # Only cancel intermediate builds if on a PR:
   cancel-in-progress: ${{ startsWith(github.ref, 'refs/pull/') }}
-
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref
+    }}-${{ startsWith(github.ref, 'refs/pull/') || github.run_number }}
 jobs:
-
   prev_pytest:
     runs-on: ubuntu-latest
+    steps:
+      - name: Start Energy Measurement
+        uses: green-coding-solutions/eco-ci-energy-estimation@862050e4f01f65b1436e5eca18ba4bd85562f0de
+        with:
+          json-output: true
+          task: start-measurement
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 40
+      - id: changed-files-specific
+        name: Get changed files
+        uses: tj-actions/changed-files@v46
+        with:
+          files: 'benchmark/**
 
+            conda/**
+
+            docker/**
+
+            docs/**
+
+            examples/**
+
+            graphgym/**
+
+            README.md
+
+            CHANGELOG.md
+
+            '
+      - if: steps.changed-files-specific.outputs.only_changed != 'true'
+        name: Setup packages
+        uses: ./.github/actions/setup
+        with:
+          torch-version: ${{ matrix.torch-version }}
+          torchvision-version: ${{ matrix.torchvision-version }}
+      - if: steps.changed-files-specific.outputs.only_changed != 'true'
+        name: Install main package
+        run: 'uv pip install -e ".[test]"
+
+          '
+      - id: measurement-5
+        name: Record Measurement After Install main package
+        uses: green-coding-solutions/eco-ci-energy-estimation@862050e4f01f65b1436e5eca18ba4bd85562f0de
+        with:
+          json-output: true
+          label: Install main package
+          task: get-measurement
+      - if: steps.changed-files-specific.outputs.only_changed != 'true'
+        name: Check installation
+        run: 'uv run --no-project python -c "import torch; print(''PyTorch:'', torch.__version__)"
+
+          uv run --no-project python -c "import torch; print(''CUDA available:'',
+          torch.cuda.is_available())"
+
+          uv run --no-project python -c "import torch; print(''CUDA:'', torch.version.cuda)"
+
+          '
+        shell: bash
+      - id: measurement-7
+        name: Record Measurement After Check installation
+        uses: green-coding-solutions/eco-ci-energy-estimation@862050e4f01f65b1436e5eca18ba4bd85562f0de
+        with:
+          json-output: true
+          label: Check installation
+          task: get-measurement
+      - if: steps.changed-files-specific.outputs.only_changed != 'true'
+        name: Run tests
+        run: 'uv run --no-project pytest --durations 10
+
+          '
+        timeout-minutes: 15
+      - id: measurement-9
+        name: Record Measurement After Run tests
+        uses: green-coding-solutions/eco-ci-energy-estimation@862050e4f01f65b1436e5eca18ba4bd85562f0de
+        with:
+          json-output: true
+          label: Run tests
+          task: get-measurement
+      - id: display-measurement
+        name: Display Energy Results
+        uses: green-coding-solutions/eco-ci-energy-estimation@862050e4f01f65b1436e5eca18ba4bd85562f0de
+        with:
+          json-output: true
+          task: display-results
+      - name: Save Total Energy Consumption Data
+        run: echo '${{ steps.final-measurement.outputs.data-total-json }}' > total_energy_consumption.json
+      - name: Upload Energy Consumption Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: total-energy-consumption
+          path: total_energy_consumption.json
     strategy:
       fail-fast: false
       matrix:
-        torch-version: [1.13.0, 2.1.0, 2.6.0]
         include:
           - torch-version: 1.13.0
             torchvision-version: 0.14.0
@@ -27,50 +114,7 @@ jobs:
             torchvision-version: 0.16.0
           - torch-version: 2.6.0
             torchvision-version: 0.21.0
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 40
-
-      # Skip workflow if only certain files have been changed.
-      - name: Get changed files
-        id: changed-files-specific
-        uses: tj-actions/changed-files@v46
-        with:
-          files: |
-            benchmark/**
-            conda/**
-            docker/**
-            docs/**
-            examples/**
-            graphgym/**
-            README.md
-            CHANGELOG.md
-
-      - name: Setup packages
-        if: steps.changed-files-specific.outputs.only_changed != 'true'
-        uses: ./.github/actions/setup
-        with:
-          torch-version: ${{ matrix.torch-version }}
-          torchvision-version: ${{ matrix.torchvision-version }}
-
-      - name: Install main package
-        if: steps.changed-files-specific.outputs.only_changed != 'true'
-        run: |
-          uv pip install -e ".[test]"
-
-      - name: Check installation
-        if: steps.changed-files-specific.outputs.only_changed != 'true'
-        run: |
-          uv run --no-project python -c "import torch; print('PyTorch:', torch.__version__)"
-          uv run --no-project python -c "import torch; print('CUDA available:', torch.cuda.is_available())"
-          uv run --no-project python -c "import torch; print('CUDA:', torch.version.cuda)"
-        shell: bash
-
-      - name: Run tests
-        if: steps.changed-files-specific.outputs.only_changed != 'true'
-        timeout-minutes: 15
-        run: |
-          uv run --no-project pytest --durations 10
+        torch-version:
+          - 1.13.0
+          - 2.1.0
+          - 2.6.0

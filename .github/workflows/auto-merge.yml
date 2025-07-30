@@ -1,31 +1,61 @@
 name: Auto-merge Bot PRs
-
-on:  # yamllint disable-line rule:truthy
-  pull_request_target:
-    types: [opened, reopened]
-
-permissions:
-  contents: write
-  pull-requests: write
+on:
+  push:
+    branches:
+      - main
 
 jobs:
   auto-merge:
+    if: ${{ github.event.pull_request.user.login == 'dependabot[bot]' || github.event.pull_request.user.login
+      == 'pre-commit-ci[bot]' }}
     runs-on: ubuntu-latest
-    if: ${{ github.event.pull_request.user.login == 'dependabot[bot]' || github.event.pull_request.user.login == 'pre-commit-ci[bot]' }}
     steps:
+      - name: Start Energy Measurement
+        uses: green-coding-solutions/eco-ci-energy-estimation@862050e4f01f65b1436e5eca18ba4bd85562f0de
+        with:
+          json-output: true
+          task: start-measurement
       - uses: actions/checkout@v4
-
-      - name: Label bot PRs
-        run: gh pr edit --add-label "ci,skip-changelog" ${{ github.event.pull_request.html_url }}
-        env:
+      - env:
           GITHUB_TOKEN: ${{ secrets.PAT }}
-
+        name: Label bot PRs
+        run: gh pr edit --add-label "ci,skip-changelog" ${{ github.event.pull_request.html_url
+          }}
+      - id: measurement-3
+        name: Record Measurement After Label bot PRs
+        uses: green-coding-solutions/eco-ci-energy-estimation@862050e4f01f65b1436e5eca18ba4bd85562f0de
+        with:
+          json-output: true
+          label: Label bot PRs
+          task: get-measurement
       - name: Auto-approve
         uses: hmarr/auto-approve-action@v4
         with:
           github-token: ${{ secrets.PAT }}
-
-      - name: Enable auto-merge
-        run: gh pr merge --auto --squash ${{ github.event.pull_request.html_url }}
-        env:
+      - env:
           GITHUB_TOKEN: ${{ secrets.PAT }}
+        name: Enable auto-merge
+        run: gh pr merge --auto --squash ${{ github.event.pull_request.html_url }}
+      - id: measurement-6
+        name: Record Measurement After Enable auto-merge
+        uses: green-coding-solutions/eco-ci-energy-estimation@862050e4f01f65b1436e5eca18ba4bd85562f0de
+        with:
+          json-output: true
+          label: Enable auto-merge
+          task: get-measurement
+      - id: display-measurement
+        name: Display Energy Results
+        uses: green-coding-solutions/eco-ci-energy-estimation@862050e4f01f65b1436e5eca18ba4bd85562f0de
+        with:
+          json-output: true
+          task: display-results
+      - name: Save Total Energy Consumption Data
+        run: echo '${{ steps.final-measurement.outputs.data-total-json }}' > total_energy_consumption.json
+      - name: Upload Energy Consumption Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: total-energy-consumption
+          path: total_energy_consumption.json
+permissions:
+  contents: write
+  pull-requests: write

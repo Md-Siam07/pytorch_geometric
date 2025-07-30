@@ -1,42 +1,89 @@
 name: Full GPU Testing
-
-on:  # yamllint disable-line rule:truthy
-  workflow_dispatch:
-  # schedule:
-  #   - cron: "0 6 * * *"  # Everyday at 6:00am UTC/10:00pm PST
+on:
+  push:
+    branches:
+      - main
 
 jobs:
-
   full_gpu_pytest:
     if: github.repository == 'pyg-team/pytorch_geometric'
-    runs-on: [self-hosted, nvidia]
-
+    runs-on:
+      - self-hosted
+      - nvidia
     steps:
+      - name: Start Energy Measurement
+        uses: green-coding-solutions/eco-ci-energy-estimation@862050e4f01f65b1436e5eca18ba4bd85562f0de
+        with:
+          json-output: true
+          task: start-measurement
       - name: Checkout repository
         uses: actions/checkout@v4
-
       - name: Setup packages
         uses: ./.github/actions/setup
         with:
-          cuda-version: 'cu118'
-
+          cuda-version: cu118
       - name: Print GPU information
-        run: |
-          nvidia-smi
+        run: 'nvidia-smi
 
+          '
+      - id: measurement-4
+        name: Record Measurement After Print GPU information
+        uses: green-coding-solutions/eco-ci-energy-estimation@862050e4f01f65b1436e5eca18ba4bd85562f0de
+        with:
+          json-output: true
+          label: Print GPU information
+          task: get-measurement
       - name: Install main package
-        run: |
-          uv pip install -e ".[full,test]"
+        run: 'uv pip install -e ".[full,test]"
 
+          '
+      - id: measurement-6
+        name: Record Measurement After Install main package
+        uses: green-coding-solutions/eco-ci-energy-estimation@862050e4f01f65b1436e5eca18ba4bd85562f0de
+        with:
+          json-output: true
+          label: Install main package
+          task: get-measurement
       - name: Check installation
-        run: |
-          uv run --no-project python -c "import torch; print('PyTorch:', torch.__version__)"
-          uv run --no-project python -c "import torch; print('CUDA available:', torch.cuda.is_available())"
-          uv run --no-project python -c "import torch; print('CUDA:', torch.version.cuda)"
-        shell: bash
+        run: 'uv run --no-project python -c "import torch; print(''PyTorch:'', torch.__version__)"
 
-      - name: Run tests
-        timeout-minutes: 20
-        run: |
-          FULL_TEST=1 uv run --no-project pytest --durations 10
+          uv run --no-project python -c "import torch; print(''CUDA available:'',
+          torch.cuda.is_available())"
+
+          uv run --no-project python -c "import torch; print(''CUDA:'', torch.version.cuda)"
+
+          '
         shell: bash
+      - id: measurement-8
+        name: Record Measurement After Check installation
+        uses: green-coding-solutions/eco-ci-energy-estimation@862050e4f01f65b1436e5eca18ba4bd85562f0de
+        with:
+          json-output: true
+          label: Check installation
+          task: get-measurement
+      - name: Run tests
+        run: 'FULL_TEST=1 uv run --no-project pytest --durations 10
+
+          '
+        shell: bash
+        timeout-minutes: 20
+      - id: measurement-10
+        name: Record Measurement After Run tests
+        uses: green-coding-solutions/eco-ci-energy-estimation@862050e4f01f65b1436e5eca18ba4bd85562f0de
+        with:
+          json-output: true
+          label: Run tests
+          task: get-measurement
+      - id: display-measurement
+        name: Display Energy Results
+        uses: green-coding-solutions/eco-ci-energy-estimation@862050e4f01f65b1436e5eca18ba4bd85562f0de
+        with:
+          json-output: true
+          task: display-results
+      - name: Save Total Energy Consumption Data
+        run: echo '${{ steps.final-measurement.outputs.data-total-json }}' > total_energy_consumption.json
+      - name: Upload Energy Consumption Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: total-energy-consumption
+          path: total_energy_consumption.json

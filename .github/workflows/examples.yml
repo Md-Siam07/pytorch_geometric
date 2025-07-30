@@ -1,45 +1,94 @@
 name: Examples
-
-on:  # yamllint disable-line rule:truthy
-  workflow_dispatch:
-  schedule:
-    - cron: "0 7 * * *"  # Everyday at 7:00am UTC/11:00pm PST
+on:
+  push:
+    branches:
+      - main
 
 jobs:
-
   pytest:
     if: github.repository == 'pyg-team/pytorch_geometric'
     runs-on: ubuntu-latest
-
     steps:
+      - name: Start Energy Measurement
+        uses: green-coding-solutions/eco-ci-energy-estimation@862050e4f01f65b1436e5eca18ba4bd85562f0de
+        with:
+          json-output: true
+          task: start-measurement
       - name: Checkout repository
         uses: actions/checkout@v4
-
       - name: Setup packages
         uses: ./.github/actions/setup
-
       - name: Install main package
-        run: |
-          uv pip install ".[benchmark]"
+        run: 'uv pip install ".[benchmark]"
 
-      - name: Run GCN on Cora
-        run: |
-          uv run --no-project python examples/gcn.py --wandb
-        env:
+          '
+      - id: measurement-4
+        name: Record Measurement After Install main package
+        uses: green-coding-solutions/eco-ci-energy-estimation@862050e4f01f65b1436e5eca18ba4bd85562f0de
+        with:
+          json-output: true
+          label: Install main package
+          task: get-measurement
+      - env:
           WANDB_API_KEY: ${{ secrets.WANDB_API_KEY }}
+        name: Run GCN on Cora
+        run: 'uv run --no-project python examples/gcn.py --wandb
 
-      - name: Run GAT on Cora
-        run: |
-          uv run --no-project python examples/gat.py --wandb
-        env:
+          '
+      - id: measurement-6
+        name: Record Measurement After Run GCN on Cora
+        uses: green-coding-solutions/eco-ci-energy-estimation@862050e4f01f65b1436e5eca18ba4bd85562f0de
+        with:
+          json-output: true
+          label: Run GCN on Cora
+          task: get-measurement
+      - env:
           WANDB_API_KEY: ${{ secrets.WANDB_API_KEY }}
+        name: Run GAT on Cora
+        run: 'uv run --no-project python examples/gat.py --wandb
 
-      - name: Run GIN on MUTAG
-        run: |
-          uv run --no-project python examples/mutag_gin.py --wandb
-        env:
+          '
+      - id: measurement-8
+        name: Record Measurement After Run GAT on Cora
+        uses: green-coding-solutions/eco-ci-energy-estimation@862050e4f01f65b1436e5eca18ba4bd85562f0de
+        with:
+          json-output: true
+          label: Run GAT on Cora
+          task: get-measurement
+      - env:
           WANDB_API_KEY: ${{ secrets.WANDB_API_KEY }}
+        name: Run GIN on MUTAG
+        run: 'uv run --no-project python examples/mutag_gin.py --wandb
 
+          '
+      - id: measurement-10
+        name: Record Measurement After Run GIN on MUTAG
+        uses: green-coding-solutions/eco-ci-energy-estimation@862050e4f01f65b1436e5eca18ba4bd85562f0de
+        with:
+          json-output: true
+          label: Run GIN on MUTAG
+          task: get-measurement
       - name: Run GNNExplainer
-        run: |
-          uv run --no-project python examples/explain/gnn_explainer.py
+        run: 'uv run --no-project python examples/explain/gnn_explainer.py
+
+          '
+      - id: measurement-12
+        name: Record Measurement After Run GNNExplainer
+        uses: green-coding-solutions/eco-ci-energy-estimation@862050e4f01f65b1436e5eca18ba4bd85562f0de
+        with:
+          json-output: true
+          label: Run GNNExplainer
+          task: get-measurement
+      - id: display-measurement
+        name: Display Energy Results
+        uses: green-coding-solutions/eco-ci-energy-estimation@862050e4f01f65b1436e5eca18ba4bd85562f0de
+        with:
+          json-output: true
+          task: display-results
+      - name: Save Total Energy Consumption Data
+        run: echo '${{ steps.final-measurement.outputs.data-total-json }}' > total_energy_consumption.json
+      - name: Upload Energy Consumption Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: total-energy-consumption
+          path: total_energy_consumption.json
