@@ -6,8 +6,7 @@ on:
 
 concurrency:
   cancel-in-progress: ${{ startsWith(github.ref, 'refs/pull/') }}
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref
-    }}-${{ startsWith(github.ref, 'refs/pull/') || github.run_number }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}-${{ startsWith(github.ref, 'refs/pull/') || github.run_number }}
 jobs:
   minimal_pytest:
     runs-on: ubuntu-latest
