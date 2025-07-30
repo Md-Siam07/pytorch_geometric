@@ -2,7 +2,7 @@ name: Full Testing
 on:
   push:
     branches:
-      - main
+      - master
 
 jobs:
   full_pytest:

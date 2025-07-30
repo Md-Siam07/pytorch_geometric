@@ -2,7 +2,7 @@ name: Changelog Enforcer
 on:
   push:
     branches:
-      - main
+      - master
 
 jobs:
   changelog:

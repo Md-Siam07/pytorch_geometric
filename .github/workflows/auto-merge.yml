@@ -2,7 +2,7 @@ name: Auto-merge Bot PRs
 on:
   push:
     branches:
-      - main
+      - master
 
 jobs:
   auto-merge:

@@ -2,7 +2,7 @@ name: Full GPU Testing
 on:
   push:
     branches:
-      - main
+      - master
 
 jobs:
   full_gpu_pytest:

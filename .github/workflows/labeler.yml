@@ -2,7 +2,7 @@ name: PR Labeler
 on:
   push:
     branches:
-      - main
+      - master
 
 jobs:
   assign-author:
